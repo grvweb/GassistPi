@@ -26,27 +26,28 @@ then
 fi
 
 sudo apt-get update -y
+sudo apt-get install jq -y
 
 #Check CPU architecture
 if [[ $(uname -m|grep "armv7") ]]; then
-	devmodel="armv7"
+  devmodel="armv7"
 else
-	devmodel="armv6"
+  devmodel="armv6"
 fi
 
 echo "Checking for updates................"
 echo ""
-wget "http://raw.githubusercontent.com/shivasiddharth/GassistPi/version" /tmp/version
+wget "http://raw.githubusercontent.com/shivasiddharth/GassistPi/master/version" -O /tmp/version
 
 AvailableSDKVersion=($(jq '.Version.SDK' /tmp/version))
 AvailableFeaturesVersion=($(jq '.Version.Features' /tmp/version))
-AvailableRevisionVersion= jq '.Version.Revision' /tmp/version
+AvailableRevisionVersion=($(jq '.Version.Revision' /tmp/version))
 
 CurrentSDKVersion=($(jq '.Version.SDK' /home/${USER}/GassistPi/version))
 CurrentFeaturesVersion=($(jq '.Version.Features' /home/${USER}/GassistPi/version))
 CurrentRevisionVersion=($(jq '.Version.Revision' /home/${USER}/GassistPi/version))
 
-if ((AvailableSDKVersion >> CurrentSDKVersion)) or ((AvailableFeaturesVersion >> CurrentFeaturesVersion)) or ((AvailableRevisionVersion >> CurrentRevisionVersion)); then
+if ((AvailableSDKVersion > CurrentSDKVersion)) || ((AvailableFeaturesVersion > CurrentFeaturesVersion)) || ((AvailableRevisionVersion > CurrentRevisionVersion)); then
   echo "A new update is available........."
   echo ""
   echo ""
@@ -57,17 +58,17 @@ else
   exit 1
 fi
 
-if ((AvailableSDKVersion >> CurrentSDKVersion)); then
+if ((AvailableSDKVersion > CurrentSDKVersion)); then
   Updatetype="SDK"
   echo "You have a SDK update.........."
   echo ""
   echo ""
-elif ((AvailableFeaturesVersion >> CurrentFeaturesVersion)); then
+elif ((AvailableFeaturesVersion > CurrentFeaturesVersion)); then
   Updatetype="Feature"
   echo "You have a Feature update.........."
   echo ""
   echo ""
-elif ((AvailableRevisionVersion >> CurrentRevisionVersion)); then
+elif ((AvailableRevisionVersion > CurrentRevisionVersion)); then
   Updatetype="Revision"
   echo "You have updates to the scripts or bug fixes.........."
   echo ""
@@ -96,24 +97,22 @@ sudo cp -a /home/${USER}/GassistPi/ /home/${USER}/${backupfoldername}/
 echo "Updating the scripts..............."
 echo ""
 echo ""
-git init /home/${USER}/GassistPi/
 
-cd /home/${USER}/GassistPi
-
-git pull http://github.com/shivasiddharth/GassistPi
+sudo rm -rf /home/${USER}/GassistPi/
+git clone https://github.com/shivasiddharth/GassistPi
 
 sudo \cp -f /home/${USER}/${backupfoldername}/src/_snowboydetect.so /home/${USER}/GassistPi/src/_snowboydetect.so
 sudo \cp -f /home/${USER}/${backupfoldername}/src/snowboydetect.py /home/${USER}/GassistPi/src/snowboydetect.py
 
 cd /home/${USER}/
 
-if [[$Updatetype = "Revision"]];then
+if [[ $Updatetype = "Revision" ]];then
   echo "Finsihed updating......."
   echo "Restart your service using: sudo systemctl restart gassistpi.service"
   echo ""
   echo ""
   exit 1
-elif [[$Updatetype = "Feature"]] or [[$Updatetype = "SDK"]];then
+elif [[ $Updatetype = "Feature" ]] || [[ $Updatetype = "SDK" ]];then
   echo "Installing new dependencies......................"
   sed 's/#.*//' /home/${USER}/GassistPi/Requirements/GassistPi-system-requirements.txt | xargs sudo apt-get install -y
   source env/bin/activate
@@ -122,7 +121,7 @@ elif [[$Updatetype = "Feature"]] or [[$Updatetype = "SDK"]];then
   echo ""
 fi
 
-if [[$Updatetype != "SDK" ]];then
+if [[ $Updatetype != "SDK" ]];then
   echo "Finsihed updating......."
   echo "Restart your service using: sudo systemctl restart gassistpi.service"
   echo ""
@@ -133,7 +132,7 @@ else
   echo ""
   echo ""
   if [[ $devmodel = "armv7" ]];then
-  	pip install google-assistant-library --upgrade
+    pip install google-assistant-library --upgrade
   else
     pip install --upgrade --no-binary :all: grpcio
   fi
